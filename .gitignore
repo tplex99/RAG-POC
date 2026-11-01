@@ -1,0 +1,56 @@
+﻿# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environment/config secrets
+.env
+.env.*
+*.env
+
+# Local data / generated outputs
+chroma_db/
+extracted_images/
+extracted_imagesX/
+*.sqlite3
+*.db
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+
+# Logs and test output
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+
+
+# test data exemptions
+reff-docs/*.pdf
+ingest.py
+extract_images/*
+extracted_imagesX
+extracted_imagesX/*
