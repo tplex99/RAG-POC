@@ -62,10 +62,28 @@ def ask_multimodal_rag(question):
     return response.content, context
 
 if __name__ == "__main__":
-    test_question = "how is the transition from 4 to 5G described in the document?"
-    
-    answer, retrieved_context = ask_multimodal_rag(test_question)
-    
-    print("================ FINAL ANSWER ================\n")
-    print(answer)
     print("\n==============================================")
+    print(" Multimodal RAG POC - Interactive Query Mode")
+    print(" Type 'exit' or 'quit' to stop.")
+    print("==============================================\n")
+    
+    while True:
+        # 1. Wait for user input from the terminal
+        user_question = input("\nAsk a question: ")
+        
+        # 2. Check if the user wants to exit
+        if user_question.lower() in ['exit', 'quit']:
+            print("Shutting down...")
+            break
+            
+        # 3. Skip empty inputs
+        if not user_question.strip():
+            continue
+            
+        # 4. Run the RAG pipeline
+        answer, retrieved_context = ask_multimodal_rag(user_question)
+        
+        # 5. Print the result and loop back for the next question
+        print("\n================ FINAL ANSWER ================\n")
+        print(answer)
+        print("\n==============================================\n")

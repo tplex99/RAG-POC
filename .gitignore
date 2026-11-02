@@ -54,3 +54,5 @@ ingest.py
 extract_images/*
 extracted_imagesX
 extracted_imagesX/*
+chroma_db_advanced*
+page_renders/*

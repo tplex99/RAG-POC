@@ -1,81 +1,56 @@
-
-# Local Multimodal RAG POC (RTX 4070 / 12GB VRAM)
-
-
-
-This project is a Proof of Concept (POC) for a local Multimodal Retrieval-Augmented Generation (RAG) pipeline. It is specifically designed to run on consumer hardware with 12GB of VRAM (like an NVIDIA RTX 4070) without crashing due to Out-Of-Memory (OOM) errors.
+# Multimodal RAG POC (Local Environment)
 
 
 
-It accomplishes this by using **Ollama** to dynamically load and unload highly optimized quantized models, ensuring only one model occupies the GPU at any given time.
+A Proof of Concept (POC) for a fully local Multimodal Retrieval-Augmented Generation (RAG) pipeline. This system is designed to ingest technical whitepapers (PDFs), extract and understand both raw text and complex architectural diagrams, and answer user queries using a conversational interface.
 
 
 
-## 🚀 Features
+This architecture is optimized to run entirely on a single consumer GPU with 12GB VRAM (e.g., RTX 4070) by dynamically loading and unloading quantized models via Ollama.
 
 
 
-* **100% Local and Private:** No data leaves your machine. No API keys required.
-
-* **Diagram Understanding:** Extracts diagrams from PDFs and uses a Vision Language Model (VLM) to generate searchable text summaries of the visual data.
-
-* **Junk Image Filtering:** Automatically ignores small corporate logos and UI icons to save processing time.
-
-* **Visual Retrieval:** When a diagram summary is used to answer a query, the original image pops up on your screen for visual reference.
-
-* **Vector Storage:** Uses ChromaDB for fast, persistent local vector storage.
+## 🧠 Model Architecture
 
 
 
-## 🛠️ Hardware & Software Requirements
+To respect the 12GB VRAM limit without encountering Out-Of-Memory (OOM) errors, the workload is distributed across three specialized, 4-bit quantized models:
 
 
 
-* **GPU:** NVIDIA GPU with at least 12GB VRAM (Tested on RTX 4070)
+1.  **Vision / Ingestion (`qwen2.5vl:7b`)**: Scans rasterized PDF pages, identifies technical diagrams, and generates highly detailed text summaries (components, flows, protocols). *Uses ~5.5GB VRAM.*
 
-* **OS:** Windows / Linux
+2.  **Embedding (`nomic-embed-text`)**: Converts PDF text and vision summaries into vectors for ChromaDB. *Uses < 1GB VRAM.*
 
-* **Software:** [Ollama](https://ollama.com/) must be installed and running in the background.
-
-* **Python:** 3.8 or higher.
+3.  **Reasoning / Generation (`llama3.1:8b`)**: The final chat model that synthesizes retrieved context to answer user queries. *Uses ~5.5GB VRAM.*
 
 
 
-## 📦 Installation & Setup
+## ⚙️ Setup & Installation
 
 
 
-**1. Install Python Dependencies**
+### 1. Prerequisites
 
-Open your terminal and run:
+Ensure you have Python 3.10+ installed. Install the required Python packages in your virtual environment:
 
 ```bash
 
-pip install -U langchain-ollama pymupdf chromadb langchain langchain-chroma pillow
+pip install -U langchain-ollama pymupdf chromadb langchain langchain-chroma pillow streamlit
 
 ```
 
 
 
-**2. Pull the Required Local Models**
+### 2. Install & Start Ollama
 
-This pipeline uses three specific models to balance capability and memory usage. Run these commands in your terminal to download them via Ollama:
+Download Ollama from [ollama.com](https://ollama.com). Ensure the background server is running (check your system tray), then pull the required models:
 
 ```bash
 
-# 1. Vision Model (For reading and summarizing technical diagrams ~5GB VRAM)
-
 ollama pull qwen2.5vl:7b
 
-
-
-# 2. Embedding Model (For converting text/summaries to vectors <1GB VRAM)
-
 ollama pull nomic-embed-text
-
-
-
-# 3. Final Text Model (For answering the user's queries ~5.5GB VRAM)
 
 ollama pull llama3.1:8b
 
@@ -83,70 +58,56 @@ ollama pull llama3.1:8b
 
 
 
-## 📂 Project Structure
+## 🚀 Execution Pipeline
 
 
 
-* `ingest_folder.py` - The ingestion script. Scans PDFs, extracts text and diagrams, generates summaries, and populates the database.
+### Phase 1: Ingestion & Database Building
 
-* `query.py` - The query script. Takes a user question, retrieves relevant text/diagrams, opens the reference images, and generates an answer.
-
-* `reff-doc/` - **(Create this folder)** Place all your target PDF documents in here.
-
-* `extracted_images/` - Auto-generated. Stores the raw `.png` files of diagrams extracted from the PDFs.
-
-* `chroma_db/` - Auto-generated. The local vector database.
+Place your target PDFs inside a folder named `reff-doc/` in the root directory. 
 
 
 
-## 🏃 Usage
+We utilize an **Advanced Rasterization Strategy** (`ingest_advanced_pymupdf.py`). Instead of hunting for embedded image files (which fails on vector-based diagrams from Word/Visio), this script takes a high-res screenshot of *every* page using PyMuPDF and passes it to the Vision model to evaluate.
 
 
 
-### Phase 1: Ingestion
-
-
-
-1. Ensure the Ollama server is running (check your system tray or run `ollama serve`).
-
-2. Place your technical PDFs into the `reff-doc` directory.
-
-3. Run the ingestion script:
+Run the ingestion script:
 
 ```bash
 
-python ingest_folder.py
+python ingest_advanced_pymupdf.py
 
 ```
 
-*Note: The GPU will run at 100% during this phase as it processes the images. Small images (<200x200 pixels) are automatically skipped.*
+*Note: This process is computationally heavy as the GPU analyzes every page. Extracted page renders will be saved to `./page_renders` and data will be vectorized into `./chroma_db_advanced`.*
 
 
 
-### Phase 2: Querying
+### Phase 2: Interactive Web UI (Streamlit)
 
-
-
-1. Open `query.py` in a text editor.
-
-2. Scroll to the bottom and modify the `test_question` variable to ask a specific question about your documents.
-
-3. Run the query script:
+Once the database is populated, launch the chat interface:
 
 ```bash
 
-python query.py
+streamlit run app.py
 
 ```
 
-*If a diagram is relevant to the answer, your default image viewer will pop open to display it while the LLM generates the text response in your terminal.*
+This will start a local web server (usually at `http://localhost:8501`). The UI will maintain chat history and render the actual PDF diagrams inline whenever the LLM references them.
 
 
 
-## ⚠️ Troubleshooting
+## ⚠️ Current Limitations & Required Tuning
 
 
 
-* **`WinError 10049` or Connection Errors:** Ensure Ollama is running. The scripts are hardcoded to look for `http://127.0.0.1:11434` to bypass Windows localhost routing issues.
+The Advanced Ingestion pipeline is currently a **Work in Progress** and requires further tuning for a production-ready state:
 
-* **OOM / Crashing:** Ensure you are not running other heavy VRAM applications (like heavy video games) while running the ingestion or query scripts.
+
+
+*   **Vision False Positives:** While strict prompting (`SKIP` vs `DIAGRAM_FOUND`) is implemented, Vision Language Models (VLMs) can still occasionally hallucinate, mistaking stock photos or complex text layouts for architectural diagrams. 
+
+*   **Prompt Engineering:** The prompt used in the ingestion phase may need to be tailored to the specific style of your company's network diagrams to ensure it captures the right acronyms and data flows.
+
+*   **Vector Ranking:** Because PyMuPDF extracts both raw text and the vision summaries, the embedding model sometimes ranks raw text higher than the diagram summary. To counter this, the retrieval `k` value in `app.py` has been increased, but threshold tuning is still required to guarantee the diagram is always pulled into context.
